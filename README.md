@@ -17,6 +17,9 @@ Once the plugin has been installed, update your GruntFile as follows:
 //streamlined version
 module.exports = new require('grunt-startup')( true, "./grunt/tasks", "./grunt/config" );
 ```
+
+
+
 ```js
 //readable version
 var GruntStartup = require('grunt-startup');
