@@ -29,12 +29,12 @@ module.exports = function( opts ){
 			taskPaths: arguments[1] || [],
 			configPaths: arguments[2] || [],
 			init: arguments[3]
-		}
+		};
 	}
 
 	var options = {
 		loadTasks: true,
-		ignoreTasks: [ "grunt-cli" ],
+		ignoreTasks: [],
 		taskPaths: [],
 		configPaths: [],
 		init: function( grunt ){
@@ -77,10 +77,11 @@ module.exports = function( opts ){
 	 */
 	function loadCustomTasks( grunt, paths ){
 
-		if ( paths != undefined ){
+		if ( paths !== undefined ){
 			//cast to array if value is string
-			if (typeof paths == "string")
+			if (typeof paths === "string"){
 				paths = [ paths ];
+			}
 
 			//iterate directories and load tasks
 			paths.forEach( function( path ){
@@ -100,16 +101,16 @@ module.exports = function( opts ){
 	 * @param path
 	 * @param config
 	 */
-	function mergeConfigurationFile( path, config ){
+	function mergeConfigurationFile( grunt, configPath, config ){
 		var options;
-		grunt.verbose.writeln( "Loading: " + path );
-		switch ( path.extname( option ) ){
+		grunt.verbose.writeln( "Loading: " + configPath );
+		switch ( path.extname( configPath ) ){
 			case '.json':
-				options = grunt.file.readJSON( path );
+				options = grunt.file.readJSON( configPath );
 				break;
 
 			case '.js':
-				options = require( path );
+				options = require( configPath );
 				break;
 		}
 		//merge options into config config
@@ -126,22 +127,24 @@ module.exports = function( opts ){
 		//configuration object
 		var config = {};
 
-		if ( paths != undefined ) {
+		if ( paths !== undefined ) {
 			//cast to array if value is string
-			if ( typeof paths == "string" )
+			if ( typeof paths === "string" ){
 				paths = [ paths ];
+			}
 
-			paths.forEach( function( path ) {
+			paths.forEach( function( configPath ) {
 				grunt.verbose.writeln("");
-				grunt.verbose.writeln("Registering "+path+" configruations.");
-				if ( grunt.file.isDir( path ) ){
-					glob.sync( '*', {cwd: path} ).forEach( function( option ) {
-						var resolvedPath = path.join( process.cwd(), path, option );
-						mergeConfigurationFile( resolvedPath, config );
+				grunt.verbose.writeln("Registering "+configPath+" configruations.");
+				if ( grunt.file.isDir( configPath ) ){
+					glob.sync( '*', {cwd: configPath} ).forEach( function( option ) {
+						var resolvedPath = path.join( process.cwd(), configPath, option );
+						mergeConfigurationFile( grunt, resolvedPath, config );
 					} );
 				}
-				else if ( grunt.file.exists( path ) ){
-					mergeConfigurationFile( path, config );
+				else if ( grunt.file.exists( configPath ) ){
+					var resolvedPath = path.join( process.cwd(), configPath );
+					mergeConfigurationFile( grunt, resolvedPath, config );
 				}
 
 				grunt.verbose.writeln("");
@@ -178,7 +181,7 @@ module.exports = function( opts ){
 		//initialize grunt with concatenated configuration
 		grunt.initConfig( config );
 
-		if (options.init && typeof options.init == 'function'){
+		if (options.init && typeof options.init === 'function'){
 			options.init( grunt );
 		}
 
