@@ -6,13 +6,12 @@
 
 /**
  * Creates an grunt loader
- * @param npmTasks
- * @param taskDirectories
- * @param configDirectories
- * @param initFn
+ * @param opts {{}}
  * @returns {Function}
  */
-module.exports = function( npmTasks, taskDirectories, configDirectories, initFn ){
+module.exports = function( opts ){
+
+	//npmTasks, taskDirectories, configDirectories, initFn
 	'use strict';
 
 	/*================================================
@@ -23,89 +22,128 @@ module.exports = function( npmTasks, taskDirectories, configDirectories, initFn 
 	var path = require('path');
 	var glob = require('glob');
 
+	//legacy support
+	if ( arguments.length > 1 ){
+		opts = {
+			loadTasks: arguments[0] || false,
+			taskPaths: arguments[1] || [],
+			configPaths: arguments[2] || [],
+			init: arguments[3]
+		}
+	}
+
+	var options = {
+		loadTasks: true,
+		ignoreTasks: [ "grunt-cli" ],
+		taskPaths: [],
+		configPaths: [],
+		init: function( grunt ){
+
+		}
+	};
+
+	//merge in custom settings
+	_.merge( options, opts );
+
 
 	/*================================================
 	 * Private Methods
 	 *===============================================*/
 	/**
 	 * loads any modules prefixed with 'grunt-' listed in
-	 * package.json's devDependencies
+	 * package.json's devDependencies that are not in options.ignoreTasks
 	 * @param grunt {{}}
 	 */
 	function loadNpmTasks( grunt ) {
-		grunt.verbose.writeln( 'Loading grunt tasks from dev dependencies: '+npmTasks );
-		grunt.verbose.writeln( '  cwd: '+process.cwd() );
-		if ( npmTasks ) {
-			//get dependencies from current working directory
-			var matches = matchdep.filterDev( 'grunt-*', path.join( process.cwd(), '/package.json' ) );
-			grunt.verbose.writeln( '['+matches.join(', ')+']' );
-			matches.forEach( function( item ) {
-				if ( item != "grunt-cli" ) {
-					grunt.verbose.writeln( '  '+npmTasks );
-					grunt.loadNpmTasks( item );
-				}
-			} );
-		}
+
+		grunt.verbose.writeln( 'Loading grunt tasks from dev dependencies.' );
+
+		//get dependencies from current working directory's package.json
+		var matches = matchdep.filterDev( 'grunt-*', path.join( process.cwd(), '/package.json' ) );
+		grunt.verbose.writeln( '['+matches.join(', ')+']' );
+		matches.forEach( function( item ) {
+			//only load task if not ignored
+			if ( options.ignoreTasks.indexOf( item ) < 0 ) {
+				grunt.loadNpmTasks( item );
+			}
+		} );
+
 	}
 
 	/**
-	 * loads tasks from specifed  path
+	 * loads tasks from specifed paths
 	 * @param grunt {{}}
-	 * @param dirs {Array|String}
+	 * @param paths {Array|String}
 	 */
-	function loadCustomTasks( grunt, dirs ){
-		if ( dirs != undefined ){
+	function loadCustomTasks( grunt, paths ){
+
+		if ( paths != undefined ){
 			//cast to array if value is string
-			if (typeof dirs == "string")
-				dirs = [ dirs ];
+			if (typeof paths == "string")
+				paths = [ paths ];
 
 			//iterate directories and load tasks
-			dirs.forEach( function( dir ){
-				if ( grunt.file.isDir( dir ) ){
-					grunt.loadTasks( dir );
+			paths.forEach( function( path ){
+				if ( grunt.file.isDir( path ) ){
+					grunt.loadTasks( path );
 				}
 				else{
-					grunt.log.error( 'error loading tasks: '+dir+' does not appear to be a directory.' );
+					grunt.log.error( 'error loading tasks: '+path+' does not appear to be a directory.' );
 				}
 			});
 		}
+
+	}
+
+	/**
+	 * merge single configuration object into config
+	 * @param path
+	 * @param config
+	 */
+	function mergeConfigurationFile( path, config ){
+		var options;
+		grunt.verbose.writeln( "Loading: " + path );
+		switch ( path.extname( option ) ){
+			case '.json':
+				options = grunt.file.readJSON( path );
+				break;
+
+			case '.js':
+				options = require( path );
+				break;
+		}
+		//merge options into config config
+		_.merge( config, options );
 	}
 
 	/**
 	 * creates a configuration object from files in specifed config directory
 	 * @param grunt {{}}
-	 * @param dirs {Array|String}
+	 * @param paths {Array|String}
 	 * @returns {{}}
 	 */
-	function getConfiguration( grunt, dirs ){
+	function getConfiguration( grunt, paths ){
 		//configuration object
 		var config = {};
 
-		if ( dirs != undefined ) {
+		if ( paths != undefined ) {
 			//cast to array if value is string
-			if ( typeof dirs == "string" )
-				dirs = [ dirs ];
+			if ( typeof paths == "string" )
+				paths = [ paths ];
 
-			dirs.forEach( function( dir ) {
+			paths.forEach( function( path ) {
 				grunt.verbose.writeln("");
-				grunt.verbose.writeln("Registering "+dir+" configruations.");
-				var options;
-				glob.sync( '*', {cwd: dir} ).forEach( function( option ) {
-					var resolvedPath = path.join( process.cwd(), dir, option );
-					grunt.verbose.writeln( "Loading: " + resolvedPath );
-					switch ( path.extname( option ) ){
-						case '.json':
-							options = grunt.file.readJSON( resolvedPath );
-							break;
+				grunt.verbose.writeln("Registering "+path+" configruations.");
+				if ( grunt.file.isDir( path ) ){
+					glob.sync( '*', {cwd: path} ).forEach( function( option ) {
+						var resolvedPath = path.join( process.cwd(), path, option );
+						mergeConfigurationFile( resolvedPath, config );
+					} );
+				}
+				else if ( grunt.file.exists( path ) ){
+					mergeConfigurationFile( path, config );
+				}
 
-						case '.js':
-							options = require( resolvedPath );
-							break;
-					}
-
-					//merge options into config config
-					_.merge( config, options );
-				} );
 				grunt.verbose.writeln("");
 			} );
 		}
@@ -122,21 +160,27 @@ module.exports = function( npmTasks, taskDirectories, configDirectories, initFn 
 	 */
 	return function( grunt ){
 
-		//load tasks defined via package.json
-		loadNpmTasks( grunt );
+		if ( options.loadTasks ){
+			//load tasks defined via package.json
+			loadNpmTasks( grunt );
+		}
 
 		//load custom tasks
-		loadCustomTasks( grunt, taskDirectories );
+		loadCustomTasks( grunt, options.taskPaths );
 
-		//initialize grunt config
-		var config = getConfiguration( grunt, configDirectories );
+		//load grunt config parts
+		var config = getConfiguration( grunt, options.configPaths );
+
 		grunt.verbose.writeln('BEGIN CONFIGURATION ------------------------------------');
 		grunt.verbose.writeln( JSON.stringify( config, undefined, "  " ) );
 		grunt.verbose.writeln('END CONFIGURATION --------------------------------------');
+
+		//initialize grunt with concatenated configuration
 		grunt.initConfig( config );
 
-		if (initFn && typeof initFn == 'function')
-			initFn( grunt );
+		if (options.init && typeof options.init == 'function'){
+			options.init( grunt );
+		}
 
 	};
 
