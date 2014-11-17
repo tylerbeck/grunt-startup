@@ -14,30 +14,33 @@ npm install grunt-startup --save-dev
 Once the plugin has been installed, update your GruntFile as follows:
 ####streamlined version
 ```js
-module.exports = new require('grunt-startup')( true, "./grunt/tasks", "./grunt/config" );
+module.exports = new require('grunt-startup')( { configPaths:[ "./grunt/config" ] } );
 ```
 
 
-####readable version
+####readable version with all options
 ```js
 var GruntStartup = require('grunt-startup');
 
-module.exports = new GruntStartup(
+module.exports = new GruntStartup( {
 
 		//load npm tasks
-		true,
+		loadTasks: true,
+
+		//list of tasks not to auto-load
+		ignoreTasks: []
 
 		//array of or single directory path in which grunt tasks have been defined
-        "./grunt/tasks",
+        taskPaths: ["./grunt/tasks"],
 
-		//array of or single directory path in which grunt configuration objects have been defined
-        "./grunt/config",
+		//array of or single  path in which grunt configuration objects have been defined, directories or files
+        configPaths: ["./grunt/config"],
 
-		function( grunt ){
-			//inline grunt tasks can go here
+		//inline grunt tasks and other initialization logic can go in this method
+		init: function( grunt ){
 
 		}
-);
+} );
 ```
 
 
