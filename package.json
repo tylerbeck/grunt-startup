@@ -1,7 +1,7 @@
 {
 	"name": "grunt-startup",
 	"description": "Grunt plugin and configuration loader",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"homepage": "https://github.com/tylerbeck/grunt-startup",
 	"author": {
 		"name": "Tyler Beck",
